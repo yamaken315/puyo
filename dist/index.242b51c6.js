@@ -31,10 +31,10 @@ function drawField() {
         ctx.lineTo(canvas.width, y * blockSize);
         ctx.stroke();
     }
-    // generate puyoPair
-    const puyoPair = generatePuyoPair();
-    //draw puyoPair in operation
-    if (currentPuyoPair) drawPuyoPair(puyoPair, currentX, currentY);
+    // Ensure currentPuyoPair is generated
+    if (!currentPuyoPair) generateNewPuyoPair();
+    // Draw puyoPair in operation
+    drawPuyoPair(currentPuyoPair, currentX, currentY);
 }
 generateNewPuyoPair();
 drawField();
@@ -62,17 +62,34 @@ function generatePuyoPair() {
     const puyo2 = generatePuyo(); //2nd puyo
     return {
         puyo1: puyo1,
-        puyo2: puyo2
+        puyo2: puyo2,
+        rotation: 0
     };
 }
 function generateNewPuyoPair() {
     currentPuyoPair = generatePuyoPair();
-    currentX = 1;
+    currentX = 2;
     currentY = 0;
 }
 function drawPuyoPair(puyoPair, startX, startY) {
-    drawPuyo(puyoPair.puyo1, startX, startY);
-    drawPuyo(puyoPair.puyo2, startX, startY + 1);
+    switch(puyoPair.rotation){
+        case 0:
+            drawPuyo(puyoPair.puyo1, startX, startY);
+            drawPuyo(puyoPair.puyo2, startX, startY + 1);
+            break;
+        case 1:
+            drawPuyo(puyoPair.puyo1, startX, startY);
+            drawPuyo(puyoPair.puyo2, startX + 1, startY);
+            break;
+        case 2:
+            drawPuyo(puyoPair.puyo1, startX, startY);
+            drawPuyo(puyoPair.puyo2, startX, startY - 1);
+            break;
+        case 3:
+            drawPuyo(puyoPair.puyo1, startX, startY);
+            drawPuyo(puyoPair.puyo2, startX - 1, startY);
+            break;
+    }
 }
 for(let i = 0; i < 10; i++)console.log(i + 1, "\u756A\u76EE\u306E\u8272:", generatePuyo());
 function drawPuyo(puyo, x, y) {
@@ -119,10 +136,14 @@ function movePuyoVertical() {
     throw new Error("Function not implemented.");
 }
 function rotatePuyoRight() {
-    throw new Error("Function not implemented.");
+    if (!currentPuyoPair) return;
+    currentPuyoPair.rotation = (currentPuyoPair.rotation + 1) % 4;
+    if (!isPositionValid(currentX, currentY)) currentPuyoPair.rotation = (currentPuyoPair.rotation + 3) % 4; // 元に戻す
 }
 function rotatePuyoLeft() {
-    throw new Error("Function not implemented.");
+    if (!currentPuyoPair) return;
+    currentPuyoPair.rotation = (currentPuyoPair.rotation + 3) % 4;
+    if (!isPositionValid(currentX, currentY)) currentPuyoPair.rotation = (currentPuyoPair.rotation + 1) % 4; // 元に戻す
 }
 
 //# sourceMappingURL=index.242b51c6.js.map
