@@ -1,0 +1,12 @@
+/*canvas要素のスタイルを調整する*/
+#canvas {
+  border: 1px solid black; /*canvasの枠線（境界線）*/
+}
+
+body {
+  display: flex; /*flexboxレイアウトにする*/
+  justify-content: center; /*水平方向中央揃え*/
+  align-items: center; /*垂直方向中央揃え*/
+  height: 100vh; /*bodyの高さを画面全体にする*/
+  margin: 0; /*bodyのmarginを無くす*/
+}
