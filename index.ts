@@ -1,3 +1,112 @@
+class Puyo {
+  color: string;
+  x: number;
+  y: number;
+  isFixed: boolean;
+
+  constructor(color: string, x: number, y: number) {
+    this.color = color;
+    this.x = x;
+    this.y = y;
+    this.isFixed = false;
+  }
+
+  drop() {
+    this.y += 1;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, blockSize: number) {
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(
+      this.x * blockSize + blockSize / 2, // x of center
+      this.y * blockSize + blockSize / 2, // y of center
+      (blockSize / 2) * 0.9, // radius of circle (smaller than block)
+      0, // draw from 0 rad
+      Math.PI * 2 // draw to 2PI rad (360 degree)
+    );
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+class ActivePuyoPair {
+  puyo1: Puyo; // 親ぷよ
+  puyo2: Puyo; // 子ぷよ
+
+  constructor(puyo1: Puyo, puyo2: Puyo) {
+    this.puyo1 = puyo1;
+    this.puyo2 = puyo2;
+  }
+
+  drop() {
+    this.puyo1.drop();
+    this.puyo2.drop();
+  }
+
+  draw(ctx: CanvasRenderingContext2D, blockSize: number) {
+    this.puyo1.draw(ctx, blockSize);
+    this.puyo2.draw(ctx, blockSize);
+  }
+
+  moveHorizontal(direction: number) {
+    this.puyo1.x += direction;
+    this.puyo2.x += direction;
+  }
+
+  rotateRight() {
+    const dx = this.puyo2.x - this.puyo1.x;
+    const dy = this.puyo2.y - this.puyo1.y;
+    this.puyo2.x = this.puyo1.x - dy;
+    this.puyo2.y = this.puyo1.y + dx;
+    if (!this.isPositionValid(this.puyo2.x, this.puyo2.y)) {
+      // 元に戻す
+      this.puyo2.x = this.puyo1.x + dy;
+      this.puyo2.y = this.puyo1.y - dx;
+    }
+  }
+
+  rotateLeft() {
+    const dx = this.puyo2.x - this.puyo1.x;
+    const dy = this.puyo2.y - this.puyo1.y;
+    this.puyo2.x = this.puyo1.x + dy;
+    this.puyo2.y = this.puyo1.y - dx;
+    if (!this.isPositionValid(this.puyo2.x, this.puyo2.y)) {
+      // 元に戻す
+      this.puyo2.x = this.puyo1.x - dy;
+      this.puyo2.y = this.puyo1.y + dx;
+    }
+  }
+
+  isPositionValid(x: number, y: number): boolean {
+    if (x < 0 || x >= fieldWidth || y >= fieldHeight) {
+      return false; // out of bounds
+    }
+    if (y < 0) {
+      return true; // 上部は許容
+    }
+    if (fieldState[y][x] !== 0) {
+      return false; // 既に存在する
+    }
+    return true;
+  }
+}
+
+function generatePuyo(): Puyo {
+  const color = generateRandomColor();
+  return new Puyo(color, 0, 0); // 初期位置を設定
+}
+
+function generatePuyoPair(): ActivePuyoPair {
+  const puyo1 = new Puyo(generateRandomColor(), 2, 0);
+  const puyo2 = new Puyo(generateRandomColor(), 2, 1);
+  return new ActivePuyoPair(puyo1, puyo2);
+}
+
+function generateNewPuyoPair() {
+  currentPuyoPair = generatePuyoPair();
+}
+
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 const fieldWidth = 6;
@@ -7,9 +116,7 @@ const blockSize = 30;
 canvas.width = fieldWidth * blockSize;
 canvas.height = fieldHeight * blockSize;
 
-let currentPuyoPair: PuyoPair | null = null;
-let currentX: number = 0;
-let currentY: number = 0;
+let currentPuyoPair: ActivePuyoPair | null = null;
 
 const fieldState: number[][] = []; //state of field
 for (let y = 0; y < fieldHeight; y++) {
@@ -44,7 +151,7 @@ function drawField() {
   }
 
   // Draw puyoPair in operation
-  drawPuyoPair(currentPuyoPair!, currentX, currentY);
+  currentPuyoPair!.draw(ctx, blockSize);
 }
 
 generateNewPuyoPair();
@@ -57,129 +164,33 @@ function generateRandomColor(): string {
   const randomIndex = Math.floor(Math.random() * colors.length); //0 <= x < colors.length までの数値を小数点切り捨てする
   return colors[randomIndex];
 }
-interface Puyo {
-  color: string;
-}
-function generatePuyo(): Puyo {
-  const color = generateRandomColor();
-  return { color };
-}
-interface PuyoPair {
-  puyo1: Puyo;
-  puyo2: Puyo;
-  rotation: number; // 0: 縦, 1: 右, 2: 下, 3: 左
-}
-
-function generatePuyoPair(): PuyoPair {
-  const puyo1 = generatePuyo(); // 1st puyo
-  const puyo2 = generatePuyo(); //2nd puyo
-  return {
-    puyo1: puyo1,
-    puyo2: puyo2,
-    rotation: 0,
-  };
-}
-function generateNewPuyoPair() {
-  currentPuyoPair = generatePuyoPair();
-  currentX = 2;
-  currentY = 0;
-}
-
-function drawPuyoPair(puyoPair: PuyoPair, startX: number, startY: number) {
-  switch (puyoPair.rotation) {
-    case 0: // 縦
-      drawPuyo(puyoPair.puyo1, startX, startY);
-      drawPuyo(puyoPair.puyo2, startX, startY + 1);
-      break;
-    case 1: // 右
-      drawPuyo(puyoPair.puyo1, startX, startY);
-      drawPuyo(puyoPair.puyo2, startX + 1, startY);
-      break;
-    case 2: // 下
-      drawPuyo(puyoPair.puyo1, startX, startY);
-      drawPuyo(puyoPair.puyo2, startX, startY - 1);
-      break;
-    case 3: // 左
-      drawPuyo(puyoPair.puyo1, startX, startY);
-      drawPuyo(puyoPair.puyo2, startX - 1, startY);
-      break;
-  }
-}
-
-for (let i = 0; i < 10; i++) {
-  console.log(i + 1, "番目の色:", generatePuyo());
-}
-
-function drawPuyo(puyo: Puyo, x: number, y: number) {
-  if (!ctx) return; // ctxがnullの場合は処理中断
-  ctx.fillStyle = puyo.color;
-  ctx.beginPath();
-  ctx.arc(
-    x * blockSize + blockSize / 2, //x of center
-    y * blockSize + blockSize / 2, //y
-    (blockSize / 2) * 0.9, //radius of  circle (smaller than block)
-    0, // draw from 0 rad
-    Math.PI * 2 //draw to 2PI rad (360 degree)
-  );
-  ctx.closePath();
-  ctx.fill();
-}
 
 function handleKeyDown(event: KeyboardEvent) {
+  if (!currentPuyoPair) return;
   switch (event.key) {
     case "ArrowLeft":
-      movePuyoHorizontal(-1);
+      currentPuyoPair.moveHorizontal(-1);
       break;
-    case "ArrawRight":
-      movePuyoHorizontal(1);
+    case "ArrowRight":
+      currentPuyoPair.moveHorizontal(1);
       break;
     case "ArrowDown":
-      movePuyoVertical();
+      currentPuyoPair.drop();
       break;
     case "c":
-      rotatePuyoRight();
+      currentPuyoPair.rotateRight();
       break;
     case "x":
-      rotatePuyoLeft();
+      currentPuyoPair.rotateLeft();
       break;
   }
+  console.log("keyDown(" + event.key + ")");
+  console.log(
+    "ActivePuyoPair(x1, y1, x2, y2):",
+    currentPuyoPair.puyo1.x,
+    currentPuyoPair.puyo1.y,
+    currentPuyoPair.puyo2.x,
+    currentPuyoPair.puyo2.y
+  );
   drawField();
-}
-function isPositionValid(x: number, y: number): boolean {
-  if (x < 0 || x >= fieldWidth || y >= fieldHeight) {
-    return false; //out of bounds
-  }
-  if (y < 0) {
-    return true; //
-  }
-  if (fieldState[y][x] !== 0) {
-    return false; // already exists
-  }
-  return true;
-}
-
-function movePuyoHorizontal(direction: number) {
-  if (!currentPuyoPair) return;
-  const nextX1 = currentX + direction;
-  const nextX2 = currentX + direction;
-}
-
-function movePuyoVertical() {
-  throw new Error("Function not implemented.");
-}
-
-function rotatePuyoRight() {
-  if (!currentPuyoPair) return;
-  currentPuyoPair.rotation = (currentPuyoPair.rotation + 1) % 4;
-  if (!isPositionValid(currentX, currentY)) {
-    currentPuyoPair.rotation = (currentPuyoPair.rotation + 3) % 4; // 元に戻す
-  }
-}
-
-function rotatePuyoLeft() {
-  if (!currentPuyoPair) return;
-  currentPuyoPair.rotation = (currentPuyoPair.rotation + 3) % 4;
-  if (!isPositionValid(currentX, currentY)) {
-    currentPuyoPair.rotation = (currentPuyoPair.rotation + 1) % 4; // 元に戻す
-  }
 }
